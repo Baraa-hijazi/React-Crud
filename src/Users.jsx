@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, {useCallback, useEffect, useState} from "react";
 import {makeStyles} from '@material-ui/core/styles';
 import Typography from '@material-ui/core/Typography';
 import Button from '@material-ui/core/Button';
@@ -11,9 +11,9 @@ import TableCell from '@material-ui/core/TableCell';
 import TableContainer from '@material-ui/core/TableContainer';
 import TableHead from '@material-ui/core/TableHead';
 import TableRow from '@material-ui/core/TableRow';
-import Avatar from '@material-ui/core/Avatar';
 import ButtonGroup from '@material-ui/core/ButtonGroup';
-import {Link} from "react-router-dom";
+import {Link, useNavigate} from "react-router-dom";
+import axios from "axios";
 
 const useStyles = makeStyles((theme) => ({
     root: {
@@ -34,61 +34,29 @@ const useStyles = makeStyles((theme) => ({
     },
 }));
 
-export default function UserList() {
+export const UserList = () => {
     const classes = useStyles();
-
+    const navigate = useNavigate();
     const [users, setUsers] = useState([]);
-    useEffect(() => {
-        UsersGet()
-    }, [])
 
-    const UsersGet = () => {//(pageIndex, pageSize) => {
-        // var data = {
-        //     'pageIndex' : pageIndex,
-        //     'pageSize' : pageSize
-        // }
-        fetch("https://localhost:7000/API/User/GetValues", {
-            method: 'GET',
-            headers: {
-                Accept: 'application/form-data',
-                'Content-Type': 'application/json',
-            },
-            // body: JSON.stringify(data)
-        })
-            .then(res => res.json())
-            .then(
-                (result) => {
-                    setUsers(result)
-                }
-            )
-    }
+    const UsersGet = useCallback(async () => {
+        const response = await axios.get("https://localhost:7000/API/User/GetValues?pageIndex=1&pageSize=12");
+        const {data} = response;
+        setUsers(data);
+    }, []);
 
     const UpdateUser = id => {
-        window.location = '/update/' + id
-    }
+        navigate('/user-management', {state: {id}});
+    };
 
-    const UserDelete = id => {
-        var data = {
-            'id': id
-        }
-        fetch('https://localhost:7000/API/User', {
-            method: 'DELETE',
-            headers: {
-                Accept: 'application/form-data',
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data),
-        })
-            .then(res => res.json())
-            .then(
-                (result) => {
-                    alert(result['message'])
-                    if (result['status'] === 'ok') {
-                        UsersGet();
-                    }
-                }
-            )
-    }
+    const UserDelete = useCallback(async id => {
+        const response = await axios.delete(`https://localhost:7000/API/User?id=${id}`);
+        if (response.status === 200 || response.status === 202) UsersGet();
+    }, []);
+
+    useEffect(() => {
+        UsersGet();
+    }, [UsersGet]);
 
     return (
         <div className={classes.root}>
@@ -101,7 +69,7 @@ export default function UserList() {
                             </Typography>
                         </Box>
                         <Box>
-                            <Link to="/create">
+                            <Link to="/user-management">
                                 <Button variant="contained" color="primary">
                                     CREATE
                                 </Button>
@@ -112,30 +80,25 @@ export default function UserList() {
                         <Table className={classes.table} aria-label="simple table">
                             <TableHead>
                                 <TableRow>
-                                    <TableCell align="right">ID</TableCell>
-                                    <TableCell align="center">Avatar</TableCell>
-                                    <TableCell align="left">First</TableCell>
-                                    <TableCell align="left">Last</TableCell>
+                                    <TableCell align="left">ID</TableCell>
                                     <TableCell align="left">Username</TableCell>
+                                    <TableCell align="left">Email</TableCell>
                                     <TableCell align="center">Action</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {users.map((user) => (
-                                    <TableRow key={user.ID}>
-                                        <TableCell align="right">{user.id}</TableCell>
-                                        <TableCell align="center">
-                                            <Box display="flex" justifyContent="center">
-                                                <Avatar src={user.avatar}/>
-                                            </Box>
-                                        </TableCell>
-                                        <TableCell align="left">{user.fname}</TableCell>
-                                        <TableCell align="left">{user.lname}</TableCell>
-                                        <TableCell align="left">{user.username}</TableCell>
+                                {users && users.result && users.result.map((user, index) => (
+                                    <TableRow key={`${user.ID}-${index + 1}-user`}>
+                                        <TableCell align="left">{user.id}</TableCell>
+                                        <TableCell align="left">{user.userName}</TableCell>
+                                        <TableCell align="left">{user.email}</TableCell>
                                         <TableCell align="center">
                                             <ButtonGroup color="primary" aria-label="outlined primary button group">
-                                                <Button onClick={() => UpdateUser(user.id)}>Edit</Button>
-                                                <Button onClick={() => UserDelete(user.id)}>Del</Button>
+                                                    <Button onClick={() => UpdateUser(user.id)} variant="contained"
+                                                            color="primary">
+                                                        Edit
+                                                    </Button>
+                                                <Button onClick={() => UserDelete(user.id)}>Delete</Button>
                                             </ButtonGroup>
                                         </TableCell>
                                     </TableRow>
